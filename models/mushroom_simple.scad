@@ -20,7 +20,8 @@
 RIM_R    = 40;    // wide funnel rim radius (mm)
 THROAT_R = 8;     // narrow throat radius (mm)
 RIM_Z    = 14;    // rim height above the throat plane (mm)
-WALL     = 1.6;   // shell wall thickness (mm)
+WALL     = 0.8;   // shell (funnel + stem) wall thickness (mm) -- 2 perimeters
+                  // on a 0.4mm nozzle; as thin as is reliable in PLA
 
 STEM_LEN   = 84;  // default stem length below the throat (mm) -- override per size
 STEM_TIP_R = 4;   // stem base (bottom tip) radius (mm)
@@ -32,8 +33,11 @@ PLATE_T     = 0.8;   // PETAL (pentagon cap) thickness (mm) -- as thin as is
 ARM_STRETCH = 1.25;  // radial stretch on two opposing arms
 ARM_DROP    = 12;    // drop those two long arms in-plane (mm)
 
-RIB_T = 1.2;      // rib tangential thickness (thin -> reads as a 2D fin)
+RIB_T = 0.8;      // rib thickness (mm) -- 2 perimeters, thin 2D fin
 RIB_H = 4;        // rib depth standing off the back surface (mm)
+RIB_BITE = 1.6;   // how far the rib's inner edge sinks INTO the wall so it
+                  // always fuses to the shell (> WALL: pokes through into the
+                  // bore a little, guaranteeing a solid weld on thin walls)
 
 DISH_DEPTH = 34;  // throat sits this far below the rim -> bowl depth (mm)
 DN = 16;          // samples along the funnel curve
@@ -50,7 +54,7 @@ LAMP_DIAMETER = 200;   // assembled lamp diameter -> sets the curvature
 CURVE_RELAX  = 3.0;    // >1 softens the curve; =1 is a perfect sphere
 CURVE_FN     = 96;     // facets on the curvature sphere
 CURVE_R = LAMP_DIAMETER / 2 * CURVE_RELAX;
-CAP_OVERLAP = 1.2;   // cap reaches this far past the funnel inner rim so the
+CAP_OVERLAP = 3.0;   // cap reaches this far past the funnel inner rim so the
                      // curved cap always fuses to the funnel as ONE solid
                      // (matters most with thin petals, where the curve dips
                      //  below the flat rim and a flush edge would detach).
@@ -128,10 +132,12 @@ module pentagon_flange() {
 }
 
 // ---- back ribs (one thin extruded fin per corner) -------------------------
+// inner spine sunk RIB_BITE into the wall (so the fin overlaps the shell solid
+// and fuses); the fin then stands proud by RIB_H beyond that.
 function rib_surface(sl) = concat(
     [ for (i = [0:DN]) let (r = RIM_R + (THROAT_R - RIM_R) * i / DN)
-        [r, funnel_z(r)] ],          // rim -> throat
-    [[STEM_TIP_R, -sl]]              // -> stem tip
+        [r - RIB_BITE, funnel_z(r)] ],     // rim -> throat
+    [[STEM_TIP_R - RIB_BITE, -sl]]         // -> stem tip
 );
 
 module rib(az, sl) {
