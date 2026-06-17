@@ -92,8 +92,13 @@ def main(diameter=200.0):
     bar_mats  = bar_transforms(edge_pairs + spoke_pairs, radius)
     node_mats = node_transforms(list(V) + centres)
 
+    # node TYPE: the solid is vertex-transitive, so the 60 polyhedron vertices
+    # are all one type ("V"); the 12 pentagon centres are the other ("H" hub).
+    node_type = [0] * len(V) + [1] * len(centres)   # 0 = vertex, 1 = hub
+
     bar_block  = ",\n    ".join(_fmt_matrix(m) for m in bar_mats)
     node_block = ",\n    ".join(_fmt_matrix(m) for m in node_mats)
+    type_block = ", ".join(str(t) for t in node_type)
 
     scad = f"""// Ssymmank lamp frame -- rhombicosidodecahedron
 // 72 vertex sockets (60 polyhedron vertices + 12 pentagon centres) and
@@ -130,6 +135,16 @@ NODE_M = [
     {node_block}
 ];
 
+// ---- node categories ------------------------------------------------------
+// The rhombicosidodecahedron is vertex-transitive, so there are just two node
+// types.  NODE_TYPE[i] indexes into TYPE_NAME / TYPE_COLOR.
+//   0  "V" vertex node  -- 60, a 3.4.5.4 polyhedron vertex (4 edges + 1 spoke)
+//   1  "H" hub node     -- 12, a pentagon centre (5 spokes)
+TYPE_NAME  = ["V", "H"];
+TYPE_COLOR = ["SteelBlue", "Crimson"];
+NODE_TYPE  = [{type_block}];
+COLOR_NODES_BY_TYPE = true;   // set false for a single colour
+
 module edge_bar() cube([1, EDGE_T, EDGE_H], center = true);  // x scaled by BAR_M
 
 // Cylindrical socket on the +Z (outward) axis, centred on the vertex so it
@@ -145,10 +160,12 @@ module node() {{
     }}
 }}
 
-color("WhiteSmoke") {{
-    for (m = BAR_M) multmatrix(m) edge_bar();
-    for (m = NODE_M) multmatrix(m) node();
-}}
+// bars stay neutral; nodes are coloured by type
+color("WhiteSmoke") for (m = BAR_M) multmatrix(m) edge_bar();
+
+for (i = [0 : len(NODE_M) - 1])
+    color(COLOR_NODES_BY_TYPE ? TYPE_COLOR[NODE_TYPE[i]] : "WhiteSmoke")
+        multmatrix(NODE_M[i]) node();
 """
     out = MODELS / "lamp_frame.scad"
     out.write_text(scad)

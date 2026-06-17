@@ -283,6 +283,16 @@ NODE_M = [
     [[-0.52573, 0.00000, 0.85065, 85.06508], [-0.85065, -0.00000, -0.52573, -52.57311], [0.00000, -1.00000, 0.00000, 0.00000], [0.00000, 0.00000, 0.00000, 1.00000]]
 ];
 
+// ---- node categories ------------------------------------------------------
+// The rhombicosidodecahedron is vertex-transitive, so there are just two node
+// types.  NODE_TYPE[i] indexes into TYPE_NAME / TYPE_COLOR.
+//   0  "V" vertex node  -- 60, a 3.4.5.4 polyhedron vertex (4 edges + 1 spoke)
+//   1  "H" hub node     -- 12, a pentagon centre (5 spokes)
+TYPE_NAME  = ["V", "H"];
+TYPE_COLOR = ["SteelBlue", "Crimson"];
+NODE_TYPE  = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
+COLOR_NODES_BY_TYPE = true;   // set false for a single colour
+
 module edge_bar() cube([1, EDGE_T, EDGE_H], center = true);  // x scaled by BAR_M
 
 // Cylindrical socket on the +Z (outward) axis, centred on the vertex so it
@@ -298,7 +308,9 @@ module node() {
     }
 }
 
-color("WhiteSmoke") {
-    for (m = BAR_M) multmatrix(m) edge_bar();
-    for (m = NODE_M) multmatrix(m) node();
-}
+// bars stay neutral; nodes are coloured by type
+color("WhiteSmoke") for (m = BAR_M) multmatrix(m) edge_bar();
+
+for (i = [0 : len(NODE_M) - 1])
+    color(COLOR_NODES_BY_TYPE ? TYPE_COLOR[NODE_TYPE[i]] : "WhiteSmoke")
+        multmatrix(NODE_M[i]) node();
