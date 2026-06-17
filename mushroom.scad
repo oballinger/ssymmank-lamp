@@ -15,6 +15,8 @@
 //         tiled mushrooms form a clean sphere, not a faceted solid.
 // STEP 10: smooth outer surface -- funnel dish meets the cap tangentially (no
 //          hard rim) and the ribs are clipped just under the surface.
+// STEP 11: restore a clearly-visible trumpet funnel bowl + conical stem (the
+//          tangent dish had flattened them away), keeping the smooth rim/cap.
 
 // ---- parameters -----------------------------------------------------------
 LAMP_DIAMETER = 200;  // assembled lamp diameter (mm) -> sets the face curvature
@@ -49,38 +51,37 @@ CAP_ZC = HEIGHT - sqrt(CURVE_R * CURVE_R - (RIM_R - WALL) * (RIM_R - WALL));
 function cap_z(rho)     = CAP_ZC + sqrt(CURVE_R * CURVE_R - rho * rho);
 function cap_slope(rho) = -rho / sqrt(CURVE_R * CURVE_R - rho * rho);
 
-// ---- smooth funnel dish ---------------------------------------------------
-// The dish rises out of the throat and meets the cap TANGENTIALLY at the rim
-// (same height and slope), so there is no hard rim where the funnel meets the
-// pentagon -- the outer surface flows smoothly from the bowl into the flange.
-DISH_DEPTH = 20;   // how far the throat sits below the rim (mm) -> bowl depth
-DISH_M0 = 1.6;     // dish slope leaving the throat (steep -> deeper bowl walls)
-DISH_N  = 24;      // samples along the dish
-function dish_z(r) =
-    let (L = RIM_R - THROAT_R, t = (r - THROAT_R) / L,
-         z0 = cap_z(RIM_R) - DISH_DEPTH,   // throat depth below rim
-         z1 = cap_z(RIM_R), m1 = cap_slope(RIM_R))
-      (2*t*t*t - 3*t*t + 1) * z0
-    + (t*t*t - 2*t*t + t)   * (DISH_M0 * L)
-    + (-2*t*t*t + 3*t*t)    * z1
-    + (t*t*t - t*t)         * (m1 * L);
+// ---- funnel dish ----------------------------------------------------------
+// A concave trumpet bowl from the throat up to the rim. The rim sits at the
+// cap's inner edge height so the funnel and the curved pentagon flange join as
+// one continuous shell. The bowl is a smooth circular-arc concave so it reads
+// clearly as a funnel and there is no hard crease leaving the throat.
+RIM_Z   = cap_z(RIM_R);            // rim height = cap edge (funnel meets flange)
+DISH_DEPTH = 34;                   // throat sits this far below the rim (mm)
+THROAT_Z   = RIM_Z - DISH_DEPTH;   // throat height
+DISH_N  = 28;                      // samples along the dish
+// concave arc: quadratic blend giving a steep wall at the throat easing to a
+// gentle (near-flat) lip at the rim -- a trumpet, not a straight cone.
+function funnel_z(r) =
+    let (t = (r - THROAT_R) / (RIM_R - THROAT_R))
+        THROAT_Z + DISH_DEPTH * (1 - (1 - t) * (1 - t));
 // dish curve sampled (r,z), with the radius pulled in by `off` (0 outer, WALL inner)
 function dish_sample(off) =
     [ for (i = [0 : DISH_N])
         let (r = THROAT_R + (RIM_R - THROAT_R) * i / DISH_N)
-        [r - off, dish_z(r)] ];
+        [r - off, funnel_z(r)] ];
 
 // ---- body (funnel + stem as one shell) ------------------------------------
-// One unbroken (radius, z) profile: stem tip -> throat -> smooth dish -> rim.
+// One unbroken (radius, z) profile: stem tip -> throat -> trumpet dish -> rim.
 OUTER_PROFILE = concat(
     [[0, -STEM_LEN], [STEM_TIP_R, -STEM_LEN]],
-    dish_sample(0),                                  // throat -> rim, tangent to cap
-    [[0, cap_z(RIM_R)]]
+    dish_sample(0),                                  // throat -> rim
+    [[0, RIM_Z]]
 );
 INNER_PROFILE = concat(
     [[0, -STEM_LEN - 1], [STEM_TIP_R - WALL, -STEM_LEN - 1]],
     dish_sample(WALL),                               // inner wall
-    [[RIM_R - WALL, cap_z(RIM_R) + 1], [0, cap_z(RIM_R) + 1]]
+    [[RIM_R - WALL, RIM_Z + 1], [0, RIM_Z + 1]]
 );
 
 module body() {
@@ -159,7 +160,7 @@ module rib(vx, vy) {
     ds = 6;
     dish = [ for (k = [1 : ds])
                let (r = RIM_R + (THROAT_R - RIM_R) * k / ds)
-               [r - WALL - o, dish_z(r) - WALL, RIB_H] ];
+               [r - WALL - o, funnel_z(r) - WALL, RIB_H] ];
     shaft = [
         [STEM_TIP_R + o, -STEM_LEN + o, RIB_H],   // shaft, above the tip
         [STEM_TIP_R,     -STEM_LEN,     TIP],     // stem tip (point, flush)
