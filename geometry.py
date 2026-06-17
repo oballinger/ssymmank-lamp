@@ -79,6 +79,18 @@ def edges(face_list):
     return sorted(e)
 
 
+def pentagon_stars(V, face_list):
+    """For each pentagon face return (center_point, [5 corner indices]).
+
+    The center is the centroid of the pentagon's 5 vertices -> a star hub
+    with 5 spokes radiating to the corners (as in the lamp's interior)."""
+    out = []
+    for f in face_list:
+        if len(f) == 5:
+            out.append((V[f].mean(axis=0), list(f)))
+    return out
+
+
 def build(normalize=True):
     """Return (V, faces, edges). If normalize, scale to a unit circumsphere."""
     V = vertices()

@@ -5,6 +5,8 @@
 DIAMETER   = 200.0;   // overall lamp diameter (mm)
 STRUT_R    = 1.6;     // strut (edge) radius (mm)
 NODE_R     = 3.2;     // node (vertex) sphere radius (mm)
+SPOKE_R    = 1.2;     // pentagon star spoke radius (mm)
+STAR_R     = 3.6;     // pentagon star centre hub radius (mm)
 $fn        = 24;      // smoothness
 
 VERTS = [
@@ -193,18 +195,102 @@ EDGES = [
     [58, 59]
 ];
 
-module strut(a, b) {
-    // rounded strut between two points via hull of two spheres
+// one star hub at the centre of each of the 12 pentagons
+STAR_CENTERS = [
+    [0.0000, 78.6507, -48.6088],
+    [-48.6088, 0.0000, 78.6507],
+    [0.0000, 78.6507, 48.6088],
+    [48.6088, 0.0000, -78.6507],
+    [48.6088, 0.0000, 78.6507],
+    [-48.6088, 0.0000, -78.6507],
+    [0.0000, -78.6507, -48.6088],
+    [0.0000, -78.6507, 48.6088],
+    [78.6507, 48.6088, 0.0000],
+    [-78.6507, -48.6088, 0.0000],
+    [-78.6507, 48.6088, 0.0000],
+    [78.6507, -48.6088, 0.0000]
+];
+
+// [star_index, vertex_index] -- 5 spokes per star, 60 total
+SPOKES = [
+    [0, 18],
+    [0, 26],
+    [0, 38],
+    [0, 42],
+    [0, 30],
+    [1, 25],
+    [1, 14],
+    [1, 5],
+    [1, 12],
+    [1, 23],
+    [2, 31],
+    [2, 43],
+    [2, 39],
+    [2, 27],
+    [2, 19],
+    [3, 54],
+    [3, 45],
+    [3, 34],
+    [3, 36],
+    [3, 47],
+    [4, 48],
+    [4, 37],
+    [4, 35],
+    [4, 46],
+    [4, 55],
+    [5, 22],
+    [5, 11],
+    [5, 4],
+    [5, 13],
+    [5, 24],
+    [6, 28],
+    [6, 40],
+    [6, 32],
+    [6, 20],
+    [6, 16],
+    [7, 17],
+    [7, 21],
+    [7, 33],
+    [7, 41],
+    [7, 29],
+    [8, 58],
+    [8, 52],
+    [8, 49],
+    [8, 53],
+    [8, 59],
+    [9, 7],
+    [9, 1],
+    [9, 0],
+    [9, 6],
+    [9, 10],
+    [10, 15],
+    [10, 8],
+    [10, 2],
+    [10, 3],
+    [10, 9],
+    [11, 57],
+    [11, 51],
+    [11, 44],
+    [11, 50],
+    [11, 56]
+];
+
+module bar(a, b, r) {
+    // rounded bar between two points via hull of two spheres
     hull() {
-        translate(a) sphere(r = STRUT_R);
-        translate(b) sphere(r = STRUT_R);
+        translate(a) sphere(r = r);
+        translate(b) sphere(r = r);
     }
 }
 
 module frame() {
     color("WhiteSmoke") {
-        for (e = EDGES) strut(VERTS[e[0]], VERTS[e[1]]);
+        // pentagon / square / triangle edges
+        for (e = EDGES) bar(VERTS[e[0]], VERTS[e[1]], STRUT_R);
         for (v = VERTS) translate(v) sphere(r = NODE_R);
+        // star hub + 5 spokes inside each pentagon
+        for (s = SPOKES) bar(STAR_CENTERS[s[0]], VERTS[s[1]], SPOKE_R);
+        for (c = STAR_CENTERS) translate(c) sphere(r = STAR_R);
     }
 }
 

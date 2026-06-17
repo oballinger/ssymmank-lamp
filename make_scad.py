@@ -19,9 +19,17 @@ def fmt_vec(v):
 def main(diameter=200.0):
     V, F, E = geometry.build()           # unit circumsphere
     V = V * (diameter / 2.0)             # scale to requested diameter (mm)
+    stars = geometry.pentagon_stars(V, F)   # (center, [5 corner indices]) x12
 
     verts = ",\n    ".join(fmt_vec(v) for v in V)
     edges = ",\n    ".join("[%d, %d]" % (i, j) for i, j in E)
+    star_centers = ",\n    ".join(fmt_vec(c) for c, _ in stars)
+    # spokes as [star_index, vertex_index] pairs
+    spokes = ",\n    ".join(
+        "[%d, %d]" % (si, vi)
+        for si, (_, corners) in enumerate(stars)
+        for vi in corners
+    )
 
     scad = f"""// Ssymmank lamp frame -- rhombicosidodecahedron (vertices + edges)
 // 60 vertices, 120 edges, 62 faces (12 pentagons, 30 squares, 20 triangles).
@@ -30,6 +38,8 @@ def main(diameter=200.0):
 DIAMETER   = {diameter:.1f};   // overall lamp diameter (mm)
 STRUT_R    = 1.6;     // strut (edge) radius (mm)
 NODE_R     = 3.2;     // node (vertex) sphere radius (mm)
+SPOKE_R    = 1.2;     // pentagon star spoke radius (mm)
+STAR_R     = 3.6;     // pentagon star centre hub radius (mm)
 $fn        = 24;      // smoothness
 
 VERTS = [
@@ -40,18 +50,32 @@ EDGES = [
     {edges}
 ];
 
-module strut(a, b) {{
-    // rounded strut between two points via hull of two spheres
+// one star hub at the centre of each of the 12 pentagons
+STAR_CENTERS = [
+    {star_centers}
+];
+
+// [star_index, vertex_index] -- 5 spokes per star, 60 total
+SPOKES = [
+    {spokes}
+];
+
+module bar(a, b, r) {{
+    // rounded bar between two points via hull of two spheres
     hull() {{
-        translate(a) sphere(r = STRUT_R);
-        translate(b) sphere(r = STRUT_R);
+        translate(a) sphere(r = r);
+        translate(b) sphere(r = r);
     }}
 }}
 
 module frame() {{
     color("WhiteSmoke") {{
-        for (e = EDGES) strut(VERTS[e[0]], VERTS[e[1]]);
+        // pentagon / square / triangle edges
+        for (e = EDGES) bar(VERTS[e[0]], VERTS[e[1]], STRUT_R);
         for (v = VERTS) translate(v) sphere(r = NODE_R);
+        // star hub + 5 spokes inside each pentagon
+        for (s = SPOKES) bar(STAR_CENTERS[s[0]], VERTS[s[1]], SPOKE_R);
+        for (c = STAR_CENTERS) translate(c) sphere(r = STAR_R);
     }}
 }}
 

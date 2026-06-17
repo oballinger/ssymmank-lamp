@@ -40,14 +40,23 @@ def render_faces(V, F):
     print("saved mockup_faces.png")
 
 
-def render_frame(V, E):
+def render_frame(V, E, stars):
     fig = plt.figure(figsize=(9, 9))
     ax = fig.add_subplot(111, projection="3d")
     segs = [[V[i], V[j]] for i, j in E]
     ax.add_collection3d(Line3DCollection(segs, colors="#5a6b75", linewidths=2.0))
     ax.scatter(V[:, 0], V[:, 1], V[:, 2], s=28, c="#222", depthshade=True)
+
+    # star hub + 5 spokes at the centre of each pentagon
+    spokes = [[c, V[vi]] for c, corners in stars for vi in corners]
+    ax.add_collection3d(Line3DCollection(spokes, colors=COLORS[5], linewidths=1.6))
+    C = np.array([c for c, _ in stars])
+    ax.scatter(C[:, 0], C[:, 1], C[:, 2], s=55, c=COLORS[5], edgecolor="#222",
+               linewidth=0.5, depthshade=True)
+
     _style(ax)
-    ax.set_title(f"Vertices + edges: {len(V)} vertices, {len(E)} edges", fontsize=11)
+    ax.set_title(f"Vertices + edges ({len(V)} verts, {len(E)} edges) "
+                 f"+ {len(stars)} pentagon stars", fontsize=11)
     fig.savefig("mockup_frame.png", dpi=130, bbox_inches="tight")
     plt.close(fig)
     print("saved mockup_frame.png")
@@ -56,7 +65,7 @@ def render_frame(V, E):
 def main():
     V, F, E = geometry.build()
     render_faces(V, F)
-    render_frame(V, E)
+    render_frame(V, E, geometry.pentagon_stars(V, F))
 
 
 if __name__ == "__main__":
