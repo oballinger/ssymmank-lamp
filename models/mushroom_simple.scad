@@ -26,7 +26,9 @@ STEM_LEN   = 84;  // default stem length below the throat (mm) -- override per s
 STEM_TIP_R = 4;   // stem base (bottom tip) radius (mm)
 
 PENT_R      = 68;    // pentagon circumradius, centre -> corner (mm)
-PLATE_T     = 1.6;   // flat pentagon plate thickness (mm)
+PLATE_T     = 0.8;   // PETAL (pentagon cap) thickness (mm) -- as thin as is
+                     // reliable in PLA on a 0.4mm nozzle (2 perimeters). Try
+                     // 0.4-0.6 for a single-wall, more translucent petal.
 ARM_STRETCH = 1.25;  // radial stretch on two opposing arms
 ARM_DROP    = 12;    // drop those two long arms in-plane (mm)
 
@@ -48,7 +50,11 @@ LAMP_DIAMETER = 200;   // assembled lamp diameter -> sets the curvature
 CURVE_RELAX  = 3.0;    // >1 softens the curve; =1 is a perfect sphere
 CURVE_FN     = 96;     // facets on the curvature sphere
 CURVE_R = LAMP_DIAMETER / 2 * CURVE_RELAX;
-FLANGE_HOLE = RIM_R - WALL;                                   // cap inner edge
+CAP_OVERLAP = 1.2;   // cap reaches this far past the funnel inner rim so the
+                     // curved cap always fuses to the funnel as ONE solid
+                     // (matters most with thin petals, where the curve dips
+                     //  below the flat rim and a flush edge would detach).
+FLANGE_HOLE = RIM_R - WALL - CAP_OVERLAP;                     // cap inner edge
 CAP_ZC = RIM_Z - sqrt(CURVE_R*CURVE_R - FLANGE_HOLE*FLANGE_HOLE);  // hole edge at RIM_Z
 
 THROAT_Z = RIM_Z - DISH_DEPTH;
