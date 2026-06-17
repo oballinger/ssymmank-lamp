@@ -42,9 +42,10 @@ def _fmt_matrix(m):
     return "[" + ", ".join("[%.5f, %.5f, %.5f, %.5f]" % tuple(row) for row in m) + "]"
 
 
-def edge_transforms(V, E):
-    """One transform per edge: x-axis along the edge, z-axis ~radial (thickness),
-    y-axis tangential (width). Centred on the edge midpoint."""
+def edge_transforms(V, E, radius):
+    """One transform per edge: x-axis along the edge, z-axis radial, y-axis
+    tangential. The bar stands as a radial fin (its tall side along z), centred
+    on the sphere at `radius` so it runs the full height of the sockets."""
     mats, lengths = [], []
     for i, j in E:
         a, b = V[i], V[j]
@@ -53,9 +54,10 @@ def edge_transforms(V, E):
         e = d / L
         mid = (a + b) / 2.0
         radial = _unit(mid)                 # outward at the edge midpoint
-        width = _unit(np.cross(radial, e))  # tangential, perpendicular to edge
-        thick = _unit(np.cross(e, width))   # ~radial -> the 2 mm thickness axis
-        mats.append(_matrix(e, width, thick, mid))
+        tang = _unit(np.cross(radial, e))   # tangential, perpendicular to edge
+        z = _unit(np.cross(e, tang))        # radial -> the bar's tall (height) axis
+        centre = radial * radius            # sit on the sphere, level with sockets
+        mats.append(_matrix(e, tang, z, centre))
         lengths.append(L)
     return mats, float(np.mean(lengths))    # all edges equal on an Archimedean solid
 
@@ -76,9 +78,10 @@ def node_transforms(V):
 
 def main(diameter=200.0):
     V, F, E = geometry.build()           # unit circumsphere
-    V = V * (diameter / 2.0)             # scale to requested diameter (mm)
+    radius = diameter / 2.0
+    V = V * radius                       # scale to requested diameter (mm)
 
-    edge_mats, edge_len = edge_transforms(V, E)
+    edge_mats, edge_len = edge_transforms(V, E, radius)
     node_mats = node_transforms(V)
 
     edge_block = ",\n    ".join(_fmt_matrix(m) for m in edge_mats)
@@ -90,18 +93,17 @@ def main(diameter=200.0):
 
 DIAMETER  = {diameter:.1f};   // overall lamp diameter (mm)
 
-// ---- flat edge bars -------------------------------------------------------
+// ---- edge bars (flat fins standing radially) ------------------------------
 EDGE_L    = {edge_len:.4f};   // edge (chord) length (mm) -- equal for all edges
-EDGE_W    = 10;       // bar width  (mm)  -- lies tangent to the sphere
-EDGE_T    = 2;        // bar thickness (mm) -- radial
+EDGE_H    = 10;       // bar HEIGHT (mm) -- radial; runs the height of the sockets
+EDGE_T    = 2;        // bar thickness (mm) -- tangential
 
 // ---- vertex sockets -------------------------------------------------------
 STEM_TIP_R = 4;       // mushroom stem base radius (must match the mushroom)
 FIT_CLR    = 0.35;    // radial clearance so the stem slides in
-SOCKET_DEPTH = 11;    // how deep the stem seats (mm)
 SOCKET_WALL  = 2.2;   // wall around the bore (mm)
-NODE_IN    = 4;       // hub reaches this far inward from the vertex (mm)
-NODE_OUT   = 13;      // ...and this far outward (must cover SOCKET_DEPTH)
+SOCKET_H   = EDGE_H;  // socket height = edge height, so edges run its full height
+SOCKET_DEPTH = SOCKET_H - 1;   // bore depth (1 mm floor at the inner end)
 
 $fn = 32;
 
@@ -117,16 +119,17 @@ NODE_M = [
     {node_block}
 ];
 
-module edge_bar() cube([EDGE_L, EDGE_W, EDGE_T], center = true);
+module edge_bar() cube([EDGE_L, EDGE_T, EDGE_H], center = true);
 
-// Cylindrical socket on the +Z (outward) axis. Conical bore (matched to the
+// Cylindrical socket on the +Z (outward) axis, centred on the vertex so it
+// spans the same radial band as the edge fins. Conical bore (matched to the
 // tapered mushroom stem) opens at the outer face; a mushroom plugs in pointing
 // outward.
 module node() {{
-    translate([0, 0, -NODE_IN])
+    translate([0, 0, -SOCKET_H / 2])
     difference() {{
-        cylinder(h = NODE_IN + NODE_OUT, r = NODE_R);
-        translate([0, 0, NODE_IN + NODE_OUT - SOCKET_DEPTH + 0.5])
+        cylinder(h = SOCKET_H, r = NODE_R);
+        translate([0, 0, SOCKET_H - SOCKET_DEPTH + 0.5])
             cylinder(h = SOCKET_DEPTH, r1 = BORE_R_TIP, r2 = BORE_R_MOUTH);
     }}
 }}
