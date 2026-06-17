@@ -8,7 +8,13 @@
 // It keeps the recognisable shape -- trumpet funnel, conical stem, stretched
 // pentagon, back fins -- but evaluates in a fraction of a second.
 //
+// ORIENTATION: the funnel/stem axis is +Z (stem at -Z, cap at +Z). The pentagon
+// "top" (its single un-stretched apex) is +Y; the two long arms are the lower
+// corners at 162 deg and 18 deg.
+//
 // The small / medium / large files `include` this core and override STEM_LEN.
+// `mushroom(stem_len)` is also exposed as a module so other files can `use`
+// this and place oriented copies.
 
 // ---- parameters -----------------------------------------------------------
 RIM_R    = 40;    // wide funnel rim radius (mm)
@@ -16,7 +22,7 @@ THROAT_R = 8;     // narrow throat radius (mm)
 RIM_Z    = 14;    // rim height above the throat plane (mm)
 WALL     = 1.6;   // shell wall thickness (mm)
 
-STEM_LEN   = 84;  // stem length below the throat (mm) -- overridden by s/m/l
+STEM_LEN   = 84;  // default stem length below the throat (mm) -- override per size
 STEM_TIP_R = 4;   // stem base (bottom tip) radius (mm)
 
 PENT_R      = 68;    // pentagon circumradius, centre -> corner (mm)
@@ -39,24 +45,24 @@ function funnel_z(r) =
         THROAT_Z + DISH_DEPTH * (1 - (1 - t) * (1 - t));
 
 // ---- body (funnel + stem as one revolved shell) ---------------------------
-OUTER_PROFILE = concat(
-    [[0, -STEM_LEN], [STEM_TIP_R, -STEM_LEN]],
+function outer_profile(sl) = concat(
+    [[0, -sl], [STEM_TIP_R, -sl]],
     [ for (i = [0:DN]) let (r = THROAT_R + (RIM_R - THROAT_R) * i / DN)
         [r, funnel_z(r)] ],
     [[0, RIM_Z]]
 );
-INNER_PROFILE = concat(
-    [[0, -STEM_LEN - 1], [STEM_TIP_R - WALL, -STEM_LEN - 1]],
+function inner_profile(sl) = concat(
+    [[0, -sl - 1], [STEM_TIP_R - WALL, -sl - 1]],
     [ for (i = [0:DN]) let (r = THROAT_R + (RIM_R - THROAT_R) * i / DN)
         [r - WALL, funnel_z(r)] ],
     [[RIM_R - WALL, RIM_Z + 1], [0, RIM_Z + 1]]
 );
 
-module body() {
+module body(sl) {
     rotate_extrude(angle = 360)
         difference() {
-            polygon(OUTER_PROFILE);
-            polygon(INNER_PROFILE);
+            polygon(outer_profile(sl));
+            polygon(inner_profile(sl));
         }
 }
 
@@ -80,18 +86,14 @@ module pentagon_flange() {
 }
 
 // ---- back ribs (one thin extruded fin per corner) -------------------------
-// The fin is a single thin sliver in the meridian plane: its inner edge hugs
-// the funnel+stem outer surface (rim -> throat -> tip) and its outer edge is
-// the same path pushed out by RIB_H, tapering to nothing at both ends. One
-// polygon, one linear_extrude -- no booleans.
-function rib_surface() = concat(
+function rib_surface(sl) = concat(
     [ for (i = [0:DN]) let (r = RIM_R + (THROAT_R - RIM_R) * i / DN)
         [r, funnel_z(r)] ],          // rim -> throat
-    [[STEM_TIP_R, -STEM_LEN]]        // -> stem tip
+    [[STEM_TIP_R, -sl]]              // -> stem tip
 );
 
-module rib(az) {
-    s = rib_surface();
+module rib(az, sl) {
+    s = rib_surface(sl);
     n = len(s);
     outer = [ for (i = [n - 1 : -1 : 0])
                 let (d = RIB_H * sin(180 * i / (n - 1)))   // 0 at ends, max mid
@@ -102,12 +104,16 @@ module rib(az) {
                 polygon(concat(s, outer));
 }
 
-module ribs() { for (a = PENT_ANGLES) rib(a); }
+module ribs(sl) { for (a = PENT_ANGLES) rib(a, sl); }
 
-// ---- assemble -------------------------------------------------------------
-color("Cornsilk")
-union() {
-    body();
-    pentagon_flange();
-    ribs();
+// ---- the whole element ----------------------------------------------------
+module mushroom(stem_len = STEM_LEN) {
+    color("Cornsilk")
+    union() {
+        body(stem_len);
+        pentagon_flange();
+        ribs(stem_len);
+    }
 }
+
+mushroom();
