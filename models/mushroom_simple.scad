@@ -107,8 +107,9 @@ module rib(az, sl) {
 module ribs(sl) { for (a = PENT_ANGLES) rib(a, sl); }
 
 // ---- the whole element ----------------------------------------------------
+MUSH_ALPHA = 0.7;   // 70% opaque (semi-transparent)
 module mushroom(stem_len = STEM_LEN) {
-    color("Cornsilk")
+    color("Cornsilk", MUSH_ALPHA)
     union() {
         body(stem_len);
         pentagon_flange();
