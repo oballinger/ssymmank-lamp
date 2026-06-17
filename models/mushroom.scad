@@ -130,6 +130,10 @@ module pentagon_flange() {
                 sphere(r = CURVE_R,            $fn = SPHERE_FN);
                 sphere(r = CURVE_R - PLATE_T,  $fn = SPHERE_FN);
             }
+        // upper-half clip: keep only the top cap (the full shell would also
+        // give the antipodal bottom cap through the tall prism).
+        translate([0, 0, CAP_ZC + CURVE_R])
+            cube([4 * CURVE_R, 4 * CURVE_R, 2 * CURVE_R], center = true);
     }
 }
 

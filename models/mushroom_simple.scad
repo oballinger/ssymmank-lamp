@@ -92,7 +92,10 @@ function pentagon_pts() =
 
 module pentagon_flange() {
     if (CURVE_CAP) {
-        // curved cap: pentagon prism (with hole) ∩ uniform-thickness shell
+        // curved cap: pentagon prism (with hole) ∩ uniform-thickness shell,
+        // clipped to the UPPER hemisphere so only the top cap survives (the
+        // shell is a full sphere, so without this clip the prism also picks up
+        // the antipodal bottom cap -> a second curved pentagon far below).
         intersection() {
             linear_extrude(height = 4 * CURVE_R, center = true)
                 difference() {
@@ -104,6 +107,9 @@ module pentagon_flange() {
                     sphere(r = CURVE_R,            $fn = CURVE_FN);
                     sphere(r = CURVE_R - PLATE_T,  $fn = CURVE_FN);
                 }
+            // upper-half clip: z >= CAP_ZC (contains the whole top cap)
+            translate([0, 0, CAP_ZC + CURVE_R])
+                cube([4 * CURVE_R, 4 * CURVE_R, 2 * CURVE_R], center = true);
         }
     } else {
         translate([0, 0, RIM_Z - PLATE_T])
