@@ -79,15 +79,22 @@ def edges(face_list):
     return sorted(e)
 
 
-def pentagon_stars(V, face_list):
+def pentagon_stars(V, face_list, bulge=1.0):
     """For each pentagon face return (center_point, [5 corner indices]).
 
-    The center is the centroid of the pentagon's 5 vertices -> a star hub
-    with 5 spokes radiating to the corners (as in the lamp's interior)."""
+    The center is the centroid of the pentagon's 5 vertices, pushed radially
+    outward toward the circumsphere to make the structure more spherical:
+        bulge=0  -> flat centroid (recessed)
+        bulge=1  -> projected onto the circumsphere (level with the corners)
+    Values >1 dome the star outward past the corners."""
+    R = float(np.linalg.norm(V, axis=1).mean())   # circumradius
     out = []
     for f in face_list:
         if len(f) == 5:
-            out.append((V[f].mean(axis=0), list(f)))
+            c = V[f].mean(axis=0)
+            cn = np.linalg.norm(c)
+            target = cn + bulge * (R - cn)
+            out.append((c / cn * target, list(f)))
     return out
 
 
