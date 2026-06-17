@@ -13,6 +13,8 @@
 //         rim made flush so pentagon + funnel + stem are one continuous shell.
 // STEP 9: curve the pentagon flange backward onto the lamp's circumsphere so
 //         tiled mushrooms form a clean sphere, not a faceted solid.
+// STEP 10: smooth outer surface -- funnel dish meets the cap tangentially (no
+//          hard rim) and the ribs are clipped just under the surface.
 
 // ---- parameters -----------------------------------------------------------
 LAMP_DIAMETER = 200;  // assembled lamp diameter (mm) -> sets the face curvature
@@ -44,30 +46,42 @@ CIRC_R = LAMP_DIAMETER / 2;       // true circumsphere radius (perfect sphere)
 CURVE_RELAX = 3.0;                // >1 softens the curve; = 1 is a perfect sphere
 CURVE_R = CIRC_R * CURVE_RELAX;   // radius actually used for the flange cap
 CAP_ZC = HEIGHT - sqrt(CURVE_R * CURVE_R - (RIM_R - WALL) * (RIM_R - WALL));
-function cap_z(rho) = CAP_ZC + sqrt(CURVE_R * CURVE_R - rho * rho);
+function cap_z(rho)     = CAP_ZC + sqrt(CURVE_R * CURVE_R - rho * rho);
+function cap_slope(rho) = -rho / sqrt(CURVE_R * CURVE_R - rho * rho);
+
+// ---- smooth funnel dish ---------------------------------------------------
+// The dish rises out of the throat and meets the cap TANGENTIALLY at the rim
+// (same height and slope), so there is no hard rim where the funnel meets the
+// pentagon -- the outer surface flows smoothly from the bowl into the flange.
+DISH_DEPTH = 20;   // how far the throat sits below the rim (mm) -> bowl depth
+DISH_M0 = 1.6;     // dish slope leaving the throat (steep -> deeper bowl walls)
+DISH_N  = 24;      // samples along the dish
+function dish_z(r) =
+    let (L = RIM_R - THROAT_R, t = (r - THROAT_R) / L,
+         z0 = cap_z(RIM_R) - DISH_DEPTH,   // throat depth below rim
+         z1 = cap_z(RIM_R), m1 = cap_slope(RIM_R))
+      (2*t*t*t - 3*t*t + 1) * z0
+    + (t*t*t - 2*t*t + t)   * (DISH_M0 * L)
+    + (-2*t*t*t + 3*t*t)    * z1
+    + (t*t*t - t*t)         * (m1 * L);
+// dish curve sampled (r,z), with the radius pulled in by `off` (0 outer, WALL inner)
+function dish_sample(off) =
+    [ for (i = [0 : DISH_N])
+        let (r = THROAT_R + (RIM_R - THROAT_R) * i / DISH_N)
+        [r - off, dish_z(r)] ];
 
 // ---- body (funnel + stem as one shell) ------------------------------------
-// The wall follows one unbroken (radius, z) profile: stem tip -> throat -> rim.
-// The inner profile is the same path offset inward by WALL. At the rim the
-// inner edge stops at z = HEIGHT (then runs vertically up to clear the cut),
-// giving a uniform-thickness rim that opens at exactly RIM_R - WALL -- the
-// same radius the pentagon plate's hole uses, so plate + funnel + stem read
-// as one continuous shell.
-OUTER_PROFILE = [
-    [0,          -STEM_LEN],
-    [STEM_TIP_R, -STEM_LEN],
-    [THROAT_R,   0],
-    [RIM_R,      HEIGHT],
-    [0,          HEIGHT],
-];
-INNER_PROFILE = [
-    [0,                 -STEM_LEN - 1],
-    [STEM_TIP_R - WALL, -STEM_LEN - 1],
-    [THROAT_R   - WALL, 0],
-    [RIM_R      - WALL, HEIGHT],       // clean uniform rim at z = HEIGHT
-    [RIM_R      - WALL, HEIGHT + 1],   // vertical riser to clear the top cut
-    [0,                 HEIGHT + 1],
-];
+// One unbroken (radius, z) profile: stem tip -> throat -> smooth dish -> rim.
+OUTER_PROFILE = concat(
+    [[0, -STEM_LEN], [STEM_TIP_R, -STEM_LEN]],
+    dish_sample(0),                                  // throat -> rim, tangent to cap
+    [[0, cap_z(RIM_R)]]
+);
+INNER_PROFILE = concat(
+    [[0, -STEM_LEN - 1], [STEM_TIP_R - WALL, -STEM_LEN - 1]],
+    dish_sample(WALL),                               // inner wall
+    [[RIM_R - WALL, cap_z(RIM_R) + 1], [0, cap_z(RIM_R) + 1]]
+);
 
 module body() {
     rotate_extrude(angle = 360)
@@ -96,7 +110,7 @@ function pentagon_pts() =
 // top curved slab (no second/bottom cap) and is robust in preview. The hole
 // is slightly smaller than the funnel opening so the cap overlaps and fuses
 // to the funnel rim (one solid, not two).
-FLANGE_HOLE = RIM_R - WALL - 3;   // overlap the rim so the cap fuses to it
+FLANGE_HOLE = RIM_R - WALL - 2;   // overlap the rim so the cap fuses to it
 
 module cap_solid() {
     intersection() {
@@ -134,20 +148,23 @@ module rib(vx, vy) {
     cr = sqrt(vx * vx + vy * vy);   // corner radial distance
     o  = RIB_H / 2;                 // push onto the back surface
     TIP = 0.1;                      // taper-to-point size
-    // Flange portion follows the curved underside (cap_z) from the pentagon
-    // vertex inward to the rim; then proud of the funnel + shaft. Ends sit
-    // exactly at the vertex and the stem tip and taper to a point.
-    fs = 3;
+    // Spine runs along the inner (back) surface: pentagon vertex -> curved cap
+    // underside -> smooth dish underside -> down the shaft. Ends taper to a
+    // point at the vertex and the stem tip. The whole rib is intersected with
+    // the outer envelope below, so it can never break the smooth outer face.
+    fs = 4;
     flange = [ for (k = [0 : fs])
                  let (rho = cr + (RIM_R - cr) * k / fs)
                  [rho, cap_z(rho) - PLATE_T, (k == 0) ? TIP : RIB_H] ];
-    rest = [
-        [RIM_R + o,      HEIGHT - o,        RIB_H],   // funnel back, below rim
-        [THROAT_R + o,   0,                 RIB_H],   // throat
-        [STEM_TIP_R + o, -STEM_LEN + o,     RIB_H],   // shaft, above the tip
-        [STEM_TIP_R,     -STEM_LEN,         TIP],     // stem tip (point, flush)
+    ds = 6;
+    dish = [ for (k = [1 : ds])
+               let (r = RIM_R + (THROAT_R - RIM_R) * k / ds)
+               [r - WALL - o, dish_z(r) - WALL, RIB_H] ];
+    shaft = [
+        [STEM_TIP_R + o, -STEM_LEN + o, RIB_H],   // shaft, above the tip
+        [STEM_TIP_R,     -STEM_LEN,     TIP],     // stem tip (point, flush)
     ];
-    N = concat(flange, rest);
+    N = concat(flange, dish, shaft);
     rotate([0, 0, th])
         for (i = [0 : len(N) - 2])
             hull() {
@@ -160,17 +177,30 @@ module ribs() {
     for (p = pentagon_pts()) rib(p[0], p[1]);
 }
 
-// solid of the open interior (dish + bore); used to trim any rib material that
-// would intrude onto the front so the ribs live strictly on the back.
+// open interior (dish + bore): trims rib material off the FRONT / out of dish.
 module cavity_solid() {
     rotate_extrude(angle = 360) polygon(INNER_PROFILE);
 }
 
-color("Cornsilk") union() {
+// filled outer envelope (the smooth outer surface as a solid). Intersecting
+// the ribs with this guarantees nothing pokes through the outer face.
+module outer_envelope() {
+    union() {
+        rotate_extrude(angle = 360) polygon(OUTER_PROFILE);
+        translate([0, 0, CAP_ZC]) sphere(r = CURVE_R, $fn = 200);
+    }
+}
+
+color("Cornsilk")
+render()
+union() {
     body();
     pentagon_flange();
-    difference() {
-        ribs();
-        cavity_solid();   // keep ribs off the front / out of the dish
+    intersection() {
+        difference() {
+            ribs();
+            cavity_solid();      // keep ribs off the front / out of the dish
+        }
+        outer_envelope();        // and never poking through the outer surface
     }
 }
