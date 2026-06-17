@@ -40,9 +40,11 @@ $fn = 96;
 // The flange is a cap of the circumsphere (radius CIRC_R). The sphere is
 // centred on the axis so the flange's inner edge stays at z = HEIGHT (flush
 // with the funnel rim); the surface then curves backward toward the arms.
-CIRC_R = LAMP_DIAMETER / 2;
-CAP_ZC = HEIGHT - sqrt(CIRC_R * CIRC_R - (RIM_R - WALL) * (RIM_R - WALL));
-function cap_z(rho) = CAP_ZC + sqrt(CIRC_R * CIRC_R - rho * rho);
+CIRC_R = LAMP_DIAMETER / 2;       // true circumsphere radius (perfect sphere)
+CURVE_RELAX = 3.0;                // >1 softens the curve; = 1 is a perfect sphere
+CURVE_R = CIRC_R * CURVE_RELAX;   // radius actually used for the flange cap
+CAP_ZC = HEIGHT - sqrt(CURVE_R * CURVE_R - (RIM_R - WALL) * (RIM_R - WALL));
+function cap_z(rho) = CAP_ZC + sqrt(CURVE_R * CURVE_R - rho * rho);
 
 // ---- body (funnel + stem as one shell) ------------------------------------
 // The wall follows one unbroken (radius, z) profile: stem tip -> throat -> rim.
@@ -88,20 +90,30 @@ function pentagon_pts() =
              drop = (PENT_FACTOR[i] > 1) ? ARM_DROP : 0)
         [r * cos(a), r * sin(a) - drop] ];
 
-// The flange is the slice of a thin spherical shell (the circumsphere) that
-// falls within the pentagon outline -- a curved cap rather than a flat plate.
-module pentagon_flange() {
+// The flange is a curved cap of the circumsphere. Built as the top PLATE_T
+// slice of a domed solid: take the pentagon prism intersected with a solid
+// sphere, then subtract a copy shifted down by PLATE_T. This leaves only the
+// top curved slab (no second/bottom cap) and is robust in preview. The hole
+// is slightly smaller than the funnel opening so the cap overlaps and fuses
+// to the funnel rim (one solid, not two).
+FLANGE_HOLE = RIM_R - WALL - 3;   // overlap the rim so the cap fuses to it
+
+module cap_solid() {
     intersection() {
-        translate([0, 0, CAP_ZC])
-            difference() {
-                sphere(r = CIRC_R, $fn = 220);
-                sphere(r = CIRC_R - PLATE_T, $fn = 220);
-            }
-        linear_extrude(height = 4 * CIRC_R, center = true)
+        translate([0, 0, CAP_ZC]) sphere(r = CURVE_R, $fn = 200);
+        linear_extrude(height = 4 * CURVE_R, center = true)
             difference() {
                 polygon(pentagon_pts());    // pentagon w/ two stretched arms
-                circle(r = RIM_R - WALL);   // funnel opening stays open
+                circle(r = FLANGE_HOLE);    // funnel opening stays open
             }
+    }
+}
+
+module pentagon_flange() {
+    render()   // force exact (CGAL) eval so the preview shows the whole cap
+    difference() {
+        cap_solid();
+        translate([0, 0, -PLATE_T]) cap_solid();
     }
 }
 
