@@ -35,14 +35,25 @@ SMALL, MEDIUM, LARGE, XL = 70.0, 84.0, 100.8, 120.96
 # clockwise from the top corner
 CORNER_SEQUENCE = [SMALL, MEDIUM, LARGE, MEDIUM, LARGE]
 
+# Mushrooms are scaled by MUSH_SCALE so that NO two ever touch (verified with a
+# nesting-aware surface model).  At full size the 68 mm caps are far wider than
+# the socket spacing and overlap heavily; ~0.52 is just under the measured
+# zero-contact threshold (0.538) for the staggered layout, with a safety margin.
+# Counter-intuitive but measured: pulling caps inward (shorter stems) makes the
+# overlap WORSE -- a low cap subtends a bigger angle -- so a wider stem range
+# does not help; cap-size-vs-frame is the real lever.  Equivalent alternative:
+# keep MUSH_SCALE = 1 and roughly double DIAMETER instead.
+MUSH_SCALE = 0.52
+
 
 def _place(socket_pt, top_dir, stem_len, r_floor):
     """4x4 placing a mushroom: +Z radial outward at the socket, +Y = top_dir
-    (projected into the tangent plane), stem tip seated at the bore floor."""
+    (projected into the tangent plane), stem tip seated at the bore floor.
+    stem_len is the SCALED stem length (the mushroom itself is scaled to match)."""
     n = _unit(socket_pt)                          # radial outward -> mushroom +Z
     yc = _unit(top_dir - (top_dir @ n) * n)       # "top" apex, in tangent plane
     xc = _unit(np.cross(yc, n))                   # right-handed (x = y cross z)
-    T = n * (r_floor + stem_len)                  # seat stem tip at bore floor
+    T = n * (r_floor + stem_len)                  # seat (scaled) stem tip at floor
     return _matrix(xc, yc, n, T)
 
 
@@ -64,11 +75,13 @@ def pentagon_placements(corners, r_floor):
         return (-ang) % 360.0                     # 0 at start, increasing clockwise
     order = sorted(range(5), key=cw_key)
 
-    out = [(_place(centre, corners[start] - centre, XL, r_floor), XL)]   # centre
+    # placement uses the SCALED stem (sl*MUSH_SCALE) so the scaled tip seats in
+    # the bore; the entry carries the UNSCALED stem for mushroom(sl) under scale().
+    def entry(socket_pt, top_dir, sl):
+        return (_place(socket_pt, top_dir, sl * MUSH_SCALE, r_floor), sl)
+    out = [entry(centre, corners[start] - centre, XL)]                    # centre
     for seq_i, k in enumerate(order):
-        v = corners[k]
-        out.append((_place(v, v - centre, CORNER_SEQUENCE[seq_i], r_floor),
-                    CORNER_SEQUENCE[seq_i]))
+        out.append(entry(corners[k], corners[k] - centre, CORNER_SEQUENCE[seq_i]))
     return out
 
 
@@ -92,21 +105,24 @@ def main(diameter=200.0):
 // Per pentagon: centre socket = XL; corners clockwise from the top =
 // small, medium, large, medium, large.  72 mushrooms, one per socket.
 // Each mushroom's TOP points radially outward from its pentagon centre.
+// Mushrooms are scaled by MUSH_SCALE so that no two ever touch.
 
 use <mushroom_simple.scad>;
 include <lamp_frame.scad>;
+
+MUSH_SCALE = {MUSH_SCALE};   // <1 shrinks mushrooms so none touch (see make_assembly.py)
 
 // each entry: [ 4x4 placement, stem_length ]
 MUSH = [
     {block}
 ];
 
-for (e = MUSH) multmatrix(e[0]) mushroom(e[1]);
+for (e = MUSH) multmatrix(e[0]) scale(MUSH_SCALE) mushroom(e[1]);
 """
     out = MODELS / "assembly.scad"
     out.write_text(scad)
-    print(f"saved {out}  ({len(placements)} mushrooms across "
-          f"{sum(1 for f in F if len(f) == 5)} pentagons)")
+    print(f"saved {out}  ({len(placements)} mushrooms, MUSH_SCALE={MUSH_SCALE}, "
+          f"cap circumradius {68*MUSH_SCALE:.0f}mm)")
 
 
 if __name__ == "__main__":
