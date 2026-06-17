@@ -5,6 +5,8 @@ Render mockups of the rhombicosidodecahedron lamp geometry.
     mockup_frame.png  - plain wireframe: the 60 vertices + 120 edges
 """
 
+from pathlib import Path
+
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")
@@ -12,6 +14,8 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 
 import geometry
+
+IMAGES = Path(__file__).resolve().parent.parent / "images"
 
 COLORS = {3: "#e8743b", 4: "#7eb6d9", 5: "#f2c14e"}  # triangle / square / pentagon
 
@@ -35,7 +39,7 @@ def render_faces(V, F):
     ax.set_title("Rhombicosidodecahedron tessellation\n"
                  f"{counts[5]} pentagons (yellow) · {counts[4]} squares (blue) · "
                  f"{counts[3]} triangles (orange)", fontsize=11)
-    fig.savefig("mockup_faces.png", dpi=130, bbox_inches="tight")
+    fig.savefig(IMAGES / "mockup_faces.png", dpi=130, bbox_inches="tight")
     plt.close(fig)
     print("saved mockup_faces.png")
 
@@ -57,7 +61,7 @@ def render_frame(V, E, stars):
     _style(ax)
     ax.set_title(f"Vertices + edges ({len(V)} verts, {len(E)} edges) "
                  f"+ {len(stars)} pentagon stars", fontsize=11)
-    fig.savefig("mockup_frame.png", dpi=130, bbox_inches="tight")
+    fig.savefig(IMAGES / "mockup_frame.png", dpi=130, bbox_inches="tight")
     plt.close(fig)
     print("saved mockup_frame.png")
 

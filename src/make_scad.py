@@ -8,8 +8,13 @@ Struts = edges (rounded cylinders), nodes = spheres at the 60 vertices.
 Geometry is parametric on DIAMETER / strut & node sizes at the top of the file.
 """
 
+from pathlib import Path
+
 import numpy as np
 import geometry
+
+ROOT = Path(__file__).resolve().parent.parent
+MODELS = ROOT / "models"
 
 
 def fmt_vec(v):
@@ -81,9 +86,9 @@ module frame() {{
 
 frame();
 """
-    with open("lamp_frame.scad", "w") as fh:
-        fh.write(scad)
-    print(f"saved lamp_frame.scad  ({len(V)} vertices, {len(E)} edges, diameter {diameter:.0f}mm)")
+    out = MODELS / "lamp_frame.scad"
+    out.write_text(scad)
+    print(f"saved {out}  ({len(V)} vertices, {len(E)} edges, diameter {diameter:.0f}mm)")
 
 
 if __name__ == "__main__":

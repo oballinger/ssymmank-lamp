@@ -38,7 +38,11 @@ ARM_DROP = 12;    // lower the two long arms by this much in-plane (mm)
 RIB_T    = 1.2;   // rib thickness, tangential -- thin, so it reads as 2D
 RIB_H    = 4;     // rib depth standing off the back surface (mm)
 
-$fn = 96;
+$fn = 64;          // revolve / circle facets (96 was overkill; identical look)
+SPHERE_FN = 72;    // facets on the big r=CURVE_R curvature spheres. The cap is a
+                   // tiny, nearly-flat slice of a 300 mm sphere, so 72 is smooth
+                   // here yet ~8x cheaper than 200 in the CGAL/CSG booleans --
+                   // this is what makes preview AND render fast.
 
 // ---- curvature ------------------------------------------------------------
 // The flange is a cap of the circumsphere (radius CIRC_R). The sphere is
@@ -105,30 +109,27 @@ function pentagon_pts() =
              drop = (PENT_FACTOR[i] > 1) ? ARM_DROP : 0)
         [r * cos(a), r * sin(a) - drop] ];
 
-// The flange is a curved cap of the circumsphere. Built as the top PLATE_T
-// slice of a domed solid: take the pentagon prism intersected with a solid
-// sphere, then subtract a copy shifted down by PLATE_T. This leaves only the
-// top curved slab (no second/bottom cap) and is robust in preview. The hole
-// is slightly smaller than the funnel opening so the cap overlaps and fuses
-// to the funnel rim (one solid, not two).
+// The flange is a curved cap of the circumsphere: the pentagon footprint
+// (prism with a central hole) intersected with a CONCENTRIC spherical shell of
+// uniform thickness PLATE_T. Two same-centre spheres a fixed PLATE_T apart never
+// have coinciding surfaces, so the OpenCSG preview is clean with NO render() --
+// forcing render() here is what made every preview load take minutes. The hole
+// is slightly smaller than the funnel opening so the cap overlaps and fuses to
+// the funnel rim (one solid, not two).
 FLANGE_HOLE = RIM_R - WALL - 2;   // overlap the rim so the cap fuses to it
 
-module cap_solid() {
+module pentagon_flange() {
     intersection() {
-        translate([0, 0, CAP_ZC]) sphere(r = CURVE_R, $fn = 200);
         linear_extrude(height = 4 * CURVE_R, center = true)
             difference() {
                 polygon(pentagon_pts());    // pentagon w/ two stretched arms
                 circle(r = FLANGE_HOLE);    // funnel opening stays open
             }
-    }
-}
-
-module pentagon_flange() {
-    render()   // force exact (CGAL) eval so the preview shows the whole cap
-    difference() {
-        cap_solid();
-        translate([0, 0, -PLATE_T]) cap_solid();
+        translate([0, 0, CAP_ZC])           // uniform-thickness spherical shell
+            difference() {
+                sphere(r = CURVE_R,            $fn = SPHERE_FN);
+                sphere(r = CURVE_R - PLATE_T,  $fn = SPHERE_FN);
+            }
     }
 }
 
@@ -188,12 +189,13 @@ module cavity_solid() {
 module outer_envelope() {
     union() {
         rotate_extrude(angle = 360) polygon(OUTER_PROFILE);
-        translate([0, 0, CAP_ZC]) sphere(r = CURVE_R, $fn = 200);
+        translate([0, 0, CAP_ZC]) sphere(r = CURVE_R, $fn = SPHERE_FN);
     }
 }
 
+// No render() here: forcing CGAL at the top level made F5 preview take minutes.
+// Preview now uses fast OpenCSG; full CGAL runs only on F6 / STL export.
 color("Cornsilk")
-render()
 union() {
     body();
     pentagon_flange();
