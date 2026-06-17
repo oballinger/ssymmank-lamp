@@ -11,8 +11,12 @@
 //         BACK of the funnel + shaft (nothing on the front/dish side).
 // STEP 8: ribs bounded to the vertex/stem and tapered at the corners;
 //         rim made flush so pentagon + funnel + stem are one continuous shell.
+// STEP 9: curve the pentagon flange backward onto the lamp's circumsphere so
+//         tiled mushrooms form a clean sphere, not a faceted solid.
 
 // ---- parameters -----------------------------------------------------------
+LAMP_DIAMETER = 200;  // assembled lamp diameter (mm) -> sets the face curvature
+
 RIM_R    = 40;    // wide rim radius at the top (mm)
 THROAT_R = 8;     // narrow throat radius at the bottom (mm)
 HEIGHT   = 14;    // funnel height -- shallow (mm)
@@ -31,6 +35,14 @@ RIB_T    = 1.2;   // rib thickness, tangential -- thin, so it reads as 2D
 RIB_H    = 4;     // rib depth standing off the back surface (mm)
 
 $fn = 96;
+
+// ---- curvature ------------------------------------------------------------
+// The flange is a cap of the circumsphere (radius CIRC_R). The sphere is
+// centred on the axis so the flange's inner edge stays at z = HEIGHT (flush
+// with the funnel rim); the surface then curves backward toward the arms.
+CIRC_R = LAMP_DIAMETER / 2;
+CAP_ZC = HEIGHT - sqrt(CIRC_R * CIRC_R - (RIM_R - WALL) * (RIM_R - WALL));
+function cap_z(rho) = CAP_ZC + sqrt(CIRC_R * CIRC_R - rho * rho);
 
 // ---- body (funnel + stem as one shell) ------------------------------------
 // The wall follows one unbroken (radius, z) profile: stem tip -> throat -> rim.
@@ -76,13 +88,21 @@ function pentagon_pts() =
              drop = (PENT_FACTOR[i] > 1) ? ARM_DROP : 0)
         [r * cos(a), r * sin(a) - drop] ];
 
+// The flange is the slice of a thin spherical shell (the circumsphere) that
+// falls within the pentagon outline -- a curved cap rather than a flat plate.
 module pentagon_flange() {
-    translate([0, 0, HEIGHT - PLATE_T])
-        linear_extrude(height = PLATE_T)
+    intersection() {
+        translate([0, 0, CAP_ZC])
+            difference() {
+                sphere(r = CIRC_R, $fn = 220);
+                sphere(r = CIRC_R - PLATE_T, $fn = 220);
+            }
+        linear_extrude(height = 4 * CIRC_R, center = true)
             difference() {
                 polygon(pentagon_pts());    // pentagon w/ two stretched arms
                 circle(r = RIM_R - WALL);   // funnel opening stays open
             }
+    }
 }
 
 // ---- support struts (flat ribs, back only) --------------------------------
@@ -102,16 +122,20 @@ module rib(vx, vy) {
     cr = sqrt(vx * vx + vy * vy);   // corner radial distance
     o  = RIB_H / 2;                 // push onto the back surface
     TIP = 0.1;                      // taper-to-point size
-    // [u, v, size] spine. Ends sit exactly at the pentagon vertex and the
-    // stem tip and taper to a point, so the rib never overshoots either bound.
-    N = [
-        [cr,             HEIGHT - PLATE_T,     TIP],    // pentagon vertex (point)
-        [RIM_R,          HEIGHT - PLATE_T - o, RIB_H],  // under the plate
-        [RIM_R + o,      HEIGHT - o,           RIB_H],  // funnel back, below rim
-        [THROAT_R + o,   0,                    RIB_H],  // throat
-        [STEM_TIP_R + o, -STEM_LEN + o,        RIB_H],  // shaft, above the tip
-        [STEM_TIP_R,     -STEM_LEN,            TIP],    // stem tip (point, flush)
+    // Flange portion follows the curved underside (cap_z) from the pentagon
+    // vertex inward to the rim; then proud of the funnel + shaft. Ends sit
+    // exactly at the vertex and the stem tip and taper to a point.
+    fs = 3;
+    flange = [ for (k = [0 : fs])
+                 let (rho = cr + (RIM_R - cr) * k / fs)
+                 [rho, cap_z(rho) - PLATE_T, (k == 0) ? TIP : RIB_H] ];
+    rest = [
+        [RIM_R + o,      HEIGHT - o,        RIB_H],   // funnel back, below rim
+        [THROAT_R + o,   0,                 RIB_H],   // throat
+        [STEM_TIP_R + o, -STEM_LEN + o,     RIB_H],   // shaft, above the tip
+        [STEM_TIP_R,     -STEM_LEN,         TIP],     // stem tip (point, flush)
     ];
+    N = concat(flange, rest);
     rotate([0, 0, th])
         for (i = [0 : len(N) - 2])
             hull() {
