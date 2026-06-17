@@ -37,6 +37,20 @@ DISH_DEPTH = 34;  // throat sits this far below the rim -> bowl depth (mm)
 DN = 16;          // samples along the funnel curve
 $fn = 48;         // low: this model is meant to be cheap
 
+// ---- backward curvature (from mushroom.scad, kept cheap) ------------------
+// The pentagon cap is curved backward onto the lamp's circumsphere so tiled
+// mushrooms approximate a sphere.  Done as a flat pentagon prism intersected
+// with a CONCENTRIC spherical shell of uniform thickness PLATE_T -- no render(),
+// so it stays a fast OpenCSG preview.  CURVE_FN only needs to be high enough
+// that the small cap region of the big sphere reads smooth.
+CURVE_CAP    = true;   // false -> flat cap (original simplified behaviour)
+LAMP_DIAMETER = 200;   // assembled lamp diameter -> sets the curvature
+CURVE_RELAX  = 3.0;    // >1 softens the curve; =1 is a perfect sphere
+CURVE_FN     = 96;     // facets on the curvature sphere
+CURVE_R = LAMP_DIAMETER / 2 * CURVE_RELAX;
+FLANGE_HOLE = RIM_R - WALL;                                   // cap inner edge
+CAP_ZC = RIM_Z - sqrt(CURVE_R*CURVE_R - FLANGE_HOLE*FLANGE_HOLE);  // hole edge at RIM_Z
+
 THROAT_Z = RIM_Z - DISH_DEPTH;
 
 // concave trumpet bowl: steep at the throat, easing to a gentle lip at the rim
@@ -77,12 +91,28 @@ function pentagon_pts() =
         [r * cos(a), r * sin(a) - drop] ];
 
 module pentagon_flange() {
-    translate([0, 0, RIM_Z - PLATE_T])
-        linear_extrude(height = PLATE_T)
-            difference() {
-                polygon(pentagon_pts());
-                circle(r = RIM_R - WALL);   // funnel opening stays open
-            }
+    if (CURVE_CAP) {
+        // curved cap: pentagon prism (with hole) ∩ uniform-thickness shell
+        intersection() {
+            linear_extrude(height = 4 * CURVE_R, center = true)
+                difference() {
+                    polygon(pentagon_pts());
+                    circle(r = FLANGE_HOLE);    // funnel opening stays open
+                }
+            translate([0, 0, CAP_ZC])
+                difference() {
+                    sphere(r = CURVE_R,            $fn = CURVE_FN);
+                    sphere(r = CURVE_R - PLATE_T,  $fn = CURVE_FN);
+                }
+        }
+    } else {
+        translate([0, 0, RIM_Z - PLATE_T])
+            linear_extrude(height = PLATE_T)
+                difference() {
+                    polygon(pentagon_pts());
+                    circle(r = RIM_R - WALL);   // funnel opening stays open
+                }
+    }
 }
 
 // ---- back ribs (one thin extruded fin per corner) -------------------------
