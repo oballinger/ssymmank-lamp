@@ -1,11 +1,16 @@
 """
 Render mockups of the rhombicosidodecahedron lamp geometry.
 
-    mockup_faces.png  - coloured pentagon / square / triangle tessellation
-    mockup_frame.png  - plain wireframe: the 60 vertices + 120 edges
+    images/mockup_faces.png  - coloured pentagon / square / triangle tessellation
+    images/mockup_frame.png  - plain wireframe: the 60 vertices + 120 edges
+
+Run:  uv run python src/mockups/build_mockups.py
 """
 
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))   # src/ -> import core
 
 import numpy as np
 import matplotlib
@@ -13,9 +18,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 
-import geometry
+from core import geometry
 
-IMAGES = Path(__file__).resolve().parent.parent / "images"
+IMAGES = Path(__file__).resolve().parents[2] / "images"
 
 COLORS = {3: "#e8743b", 4: "#7eb6d9", 5: "#f2c14e"}  # triangle / square / pentagon
 

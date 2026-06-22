@@ -102,12 +102,17 @@ function pentagon_pts() =
 
 module pentagon_flange() {
     if (CURVE_CAP) {
-        // curved cap: pentagon prism (with hole) ∩ uniform-thickness shell,
-        // clipped to the UPPER hemisphere so only the top cap survives (the
-        // shell is a full sphere, so without this clip the prism also picks up
-        // the antipodal bottom cap -> a second curved pentagon far below).
+        // curved cap: pentagon prism (with hole) ∩ uniform-thickness shell.
+        // The prism spans only the cap's z-range -- a tall (4*CURVE_R) prism
+        // made OpenCSG's depth buffer ~1:1000 vs the 0.8 mm shell, so the F5
+        // preview dropped the front/middle flange facets (pentagon looked
+        // "cut"). A short prism fixes the preview AND removes the need for the
+        // upper-half clip: the antipodal bottom cap sits ~600 mm below it.
+        FLANGE_Z_LO = -PLATE_T - 4;   // below the lowest (arm-tip) cap point
+        FLANGE_Z_HI = RIM_Z + 4;      // above the inner-edge cap point
         intersection() {
-            linear_extrude(height = 4 * CURVE_R, center = true)
+            translate([0, 0, (FLANGE_Z_LO + FLANGE_Z_HI) / 2])
+            linear_extrude(height = FLANGE_Z_HI - FLANGE_Z_LO, center = true)
                 difference() {
                     polygon(pentagon_pts());
                     circle(r = FLANGE_HOLE);    // funnel opening stays open
@@ -117,9 +122,6 @@ module pentagon_flange() {
                     sphere(r = CURVE_R,            $fn = CURVE_FN);
                     sphere(r = CURVE_R - PLATE_T,  $fn = CURVE_FN);
                 }
-            // upper-half clip: z >= CAP_ZC (contains the whole top cap)
-            translate([0, 0, CAP_ZC + CURVE_R])
-                cube([4 * CURVE_R, 4 * CURVE_R, 2 * CURVE_R], center = true);
         }
     } else {
         translate([0, 0, RIM_Z - PLATE_T])
