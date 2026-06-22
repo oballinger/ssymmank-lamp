@@ -82,16 +82,23 @@ CONN_M = [
     [[0.00000, -0.22975, 0.97325, 94.85360], [1.00000, 0.00000, 0.00000, 0.00000], [0.00000, 0.97325, 0.22975, 22.39190], [0.00000, 0.00000, 0.00000, 1.00000]]
 ];
 
-color("#4F86C6") multmatrix(PLACE_M[0]) star();
-color("#C64F4F") multmatrix(PLACE_M[1]) star();
-color("#4FC686") multmatrix(PLACE_M[2]) star();
-color("#C6A14F") multmatrix(PLACE_M[3]) star();
-color("#864FC6") multmatrix(PLACE_M[4]) star();
-color("#4FC6C6") multmatrix(PLACE_M[5]) star();
-color("#C64F86") multmatrix(PLACE_M[6]) star();
-color("#86C64F") multmatrix(PLACE_M[7]) star();
-color("#C6864F") multmatrix(PLACE_M[8]) star();
-color("#4F4FC6") multmatrix(PLACE_M[9]) star();
-color("#C6C64F") multmatrix(PLACE_M[10]) star();
-color("#9C9C9C") multmatrix(PLACE_M[11]) star();
-color("#BBBBBB") for (m = CONN_M) multmatrix(m) connector();
+// The whole frame as one reusable module: 12 star tiles + 60 connectors.
+// assembly.scad includes this file and calls frame() (with SHOW_FRAME=false).
+module frame() {
+    color("#4F86C6") multmatrix(PLACE_M[0]) star();
+    color("#C64F4F") multmatrix(PLACE_M[1]) star();
+    color("#4FC686") multmatrix(PLACE_M[2]) star();
+    color("#C6A14F") multmatrix(PLACE_M[3]) star();
+    color("#864FC6") multmatrix(PLACE_M[4]) star();
+    color("#4FC6C6") multmatrix(PLACE_M[5]) star();
+    color("#C64F86") multmatrix(PLACE_M[6]) star();
+    color("#86C64F") multmatrix(PLACE_M[7]) star();
+    color("#C6864F") multmatrix(PLACE_M[8]) star();
+    color("#4F4FC6") multmatrix(PLACE_M[9]) star();
+    color("#C6C64F") multmatrix(PLACE_M[10]) star();
+    color("#9C9C9C") multmatrix(PLACE_M[11]) star();
+    color("#BBBBBB") for (m = CONN_M) multmatrix(m) connector();
+}
+
+SHOW_FRAME = true;        // set false by includers (assembly.scad) that draw it themselves
+if (SHOW_FRAME) frame();

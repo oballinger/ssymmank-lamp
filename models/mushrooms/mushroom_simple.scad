@@ -39,7 +39,10 @@ RIB_BITE = 1.6;   // how far the rib's inner edge sinks INTO the wall so it
                   // always fuses to the shell (> WALL: pokes through into the
                   // bore a little, guaranteeing a solid weld on thin walls)
 
-DISH_DEPTH = 34;  // throat sits this far below the rim -> bowl depth (mm)
+DISH_DEPTH = 26;  // throat sits this far below the rim -> bowl depth (mm).
+                  // shallower than the original 34 so an outer shell's funnel
+                  // clears the next-inner shell's caps in the shingled assembly
+                  // (deepest depth that stays intersection-free; see assembly.scad)
 DN = 16;          // samples along the funnel curve
 $fn = 48;         // low: this model is meant to be cheap
 
@@ -51,7 +54,10 @@ $fn = 48;         // low: this model is meant to be cheap
 // that the small cap region of the big sphere reads smooth.
 CURVE_CAP    = true;   // false -> flat cap (original simplified behaviour)
 LAMP_DIAMETER = 200;   // assembled lamp diameter -> sets the curvature
-CURVE_RELAX  = 3.0;    // >1 softens the curve; =1 is a perfect sphere
+CURVE_RELAX  = 2.3;    // >1 softens the curve; =1 is a perfect sphere. 2.3 makes
+                       // the cap a patch ~CONCENTRIC with the lamp centre, so it
+                       // is radially THIN and shingles past other shells' caps
+                       // without intersecting (still only a gentle ~10mm dome).
 CURVE_FN     = 96;     // facets on the curvature sphere
 CURVE_R = LAMP_DIAMETER / 2 * CURVE_RELAX;
 CAP_OVERLAP = 3.0;   // cap reaches this far past the funnel inner rim so the
@@ -158,13 +164,19 @@ module ribs(sl) { for (a = PENT_ANGLES) rib(a, sl); }
 
 // ---- the whole element ----------------------------------------------------
 MUSH_ALPHA = 0.7;   // 70% opaque (semi-transparent)
-module mushroom(stem_len = STEM_LEN) {
-    color("Cornsilk", MUSH_ALPHA)
+module mushroom_shape(stem_len = STEM_LEN) {
     union() {
         body(stem_len);
         pentagon_flange();
         ribs(stem_len);
     }
+}
+// paint=true -> own Cornsilk colour (standalone). paint=false -> bare geometry,
+// so a caller (assembly.scad) can union many and apply ONE transparent colour --
+// otherwise overlapping per-mushroom transparent solids cancel to full clear.
+module mushroom(stem_len = STEM_LEN, paint = true) {
+    if (paint) color("Cornsilk", MUSH_ALPHA) mushroom_shape(stem_len);
+    else mushroom_shape(stem_len);
 }
 
 mushroom();
