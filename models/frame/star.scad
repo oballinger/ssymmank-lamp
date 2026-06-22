@@ -16,7 +16,7 @@ NODE_R = 6.35;
 
 // ---- keyed joint -----------------------------------------------------------
 KEY_T = 1.0; KEY_H = 6.0; KEY_DEPTH = 6.0;
-BACK = 1.0; NECK = 1.5; KEY_CLR = 0.30;
+BACK = 1.0; NECK = 1.5; KEY_CLR = 0.50;   // Tough PLA, UM3: ~0.25mm/face (was 0.30, too tight)
 
 // ---- edge kink -------------------------------------------------------------
 // Every edge bends at its middle so each half leaves its vertex perpendicular to
