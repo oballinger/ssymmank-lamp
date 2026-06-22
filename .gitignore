@@ -1,5 +1,7 @@
 __pycache__/
 .venv/
 renders/
+render/
 *.stl
+*.blend
 .DS_Store
